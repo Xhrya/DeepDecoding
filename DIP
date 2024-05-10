@@ -1,0 +1,2139 @@
+# 2-5 Layers defined
+# List of imports neccessary to run the code
+
+import csv
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import os
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import cv2
+
+import time
+
+Below, I have a series of classes in the format model_dip_[layers], where layers signifies the combined number of convolutional and upsampling layers in each class.
+
+The convolutional layers for the classes change. However, what remains the same is that the class inherits from the nn.Module class, which is the base class for all neural network modules in Pytorch.
+
+We have a constructor setup, and it defines the layers in this way:
+
+1. the up1 is a convolutional layer that maintains the number of chanels when processing the input with a particular kernel size
+2. the reLu function is used to introduce non-linearity to the model. And it's an inplace introduction, so that the argument is identified directly.
+
+3. In layers that are only 2, they only have up1, and up6. up6 has the following: a conv2d layer to reduce the number of channels from 64 back to 1, reLu, batch normalization, and another upsampling step to match the output resolution to a desired target.
+
+In layers 3 and above, we have additional up# steps, where 2D convolutional layers are applied, ReLU is introduced, batch normalization happens, and the final step is upsampling to double the spatial dimensions of the output.
+
+
+Essentially up1-up6 are organized in sequences to execute the contained layers sequentially.
+
+
+
+4.Each of the dip models, the final layer that has conv2d to reduce the dimensions back to 1, and sigmoid() function that bounds the output in the range [0,1].
+
+
+The forward function then defines the forward pass of the model, and it calls all the layers defined in the constructor.
+
+
+
+The main thing that changes in each of the models below is the number of layers called within the forward method itself. These classes are called in a later part of my code where I test the effect of additive vs multiplicative noise and their performance (in reconstructing images) at different levels.
+
+
+
+# This is a DIP model, but specifically for 2 layers. By this, I mean I have 2 Conv+ReLU+Batch,and then a final Conv+Sigmoid layer.
+
+import matplotlib.pyplot as plt
+
+class model_dip_two_layers(nn.Module):
+    def __init__(self):
+        super(model_dip_two_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        # Layer 3: Conv+ReLU+Batch
+        self.up3 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+        self.up4 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+         # Layer 4: Conv+ReLU+Batch
+        self.up5 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+
+        x = self.up6(x)
+
+        x = self.final(x)
+        return x
+
+# This is a DIP model, but specifically for 3 layers. By this, I mean I have 3 Conv+ReLU+Batch,and then a final Conv+Sigmoid layer.
+
+import matplotlib.pyplot as plt
+
+class model_dip_three_layers(nn.Module):
+    def __init__(self):
+        super(model_dip_three_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        # Layer 3: Conv+ReLU+Batch
+        self.up3 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+           nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+        self.up4 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+         # Layer 4: Conv+ReLU+Batch
+        self.up5 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+        x = self.up2(x)
+
+        x = self.up6(x)
+
+        x = self.final(x)
+        return x
+
+# This is a DIP model, but specifically for 4 layers. By this, I mean I have 4 Conv+ReLU+Batch,and then a final Conv+Sigmoid layer.
+
+import matplotlib.pyplot as plt
+
+class model_dip_four_layers(nn.Module):
+    def __init__(self):
+        super(model_dip_four_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        # Layer 3: Conv+ReLU+Batch
+        self.up3 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+           nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+        self.up4 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+         # Layer 4: Conv+ReLU+Batch
+        self.up5 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+        x = self.up2(x)
+        x = self.up3(x)
+
+        x = self.up6(x)
+
+        x = self.final(x)
+        return x
+
+# This is a DIP model, but specifically for 5 layers. By this, I mean I have 5 Conv+ReLU+Batch,and then a final Conv+Sigmoid layer.
+
+import matplotlib.pyplot as plt
+
+class model_dip_five_layers(nn.Module):
+    def __init__(self):
+        super(model_dip_five_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        # Layer 3: Conv+ReLU+Batch
+        self.up3 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+           nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+        self.up4 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+         # Layer 4: Conv+ReLU+Batch
+        self.up5 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+        x = self.up2(x)
+        x = self.up3(x)
+        x = self.up4(x)
+
+        x = self.up6(x)
+
+        x = self.final(x)
+        return x
+
+# Project_dip
+# In thsi code, a function is created in order to use the deep image prior model(dip) from above.
+# The function takes x_temp and layer as input, and outputs the output_np, the loss historu,
+# and the time it took from start to finish to put the noisy image(x_temp) into the model for dip,
+# and run dip, and denoise the image. The output_np represents the output of putting the image
+# through the dip model - so essentially, the reconstructed image.
+
+def project_DIP(x_temp, layer):
+    n1,n2 = x_temp.shape
+
+    # print('size input:', n1,n2)
+    # sizen1 = size_input/16;
+    # sizen1 = int(size_input / 16)
+    # print("input_size",size_input )
+    # print("sizen1", sizen1)
+    sizen1 = int(n1/8)
+    print(sizen1)
+    input_tensor = torch.randn(1, 64, sizen1, sizen1)  # (batch_size, channels, height, width)
+
+    print("input_tensor_size",  input_tensor.size())
+
+
+    if not isinstance(x_temp, torch.Tensor):
+        x_temp = torch.from_numpy(x_temp).float()   # Convert to tensor if it's a numpy array
+
+    if(layer ==2):
+      model = model_dip_two_layers()
+    elif(layer ==3):
+      model = model_dip_three_layers()
+    elif (layer==4):
+        model = model_dip_four_layers()
+    elif(layer==5):
+        model = model_dip_five_layers()
+    else:
+        model = model_dip_three_layers()
+
+
+
+    optimizer = optim.Adam(model.parameters(), lr=0.05)
+    criterion = nn.MSELoss()
+
+    loss_history =[]
+    start_time = time.time()
+    num_steps=200
+    for step in range(num_steps):
+        optimizer.zero_grad()
+        output=model(input_tensor)
+
+        # print("output shape", output.shape)
+        output_resized = F.interpolate(output, size=x_temp.shape[-2:], mode='bilinear', align_corners=False)
+
+        # Then calculate the loss with the resized output
+        loss = criterion(output_resized, x_temp)
+        loss_history.append(loss.item())
+
+        # loss = criterion(output,x_temp)
+        loss.backward()
+        optimizer.step()
+
+        if step % 10 == 0:
+            print(f"Step {step}, Loss: {loss.item()}")
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    print("Time lapsed", time_elapsed)
+
+    output_np = output.squeeze().detach().numpy()
+
+    return output_np, loss_history, time_elapsed
+
+
+
+
+# Testing Additive Noise
+# In this code block, some of the common functions that are used throughout the different code blocks below are listed.
+
+
+def save_figure_as_image(figure, filename):
+    figure.savefig(filename)
+
+
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+    'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+]
+
+
+# evaluates the psnr of the noisy image and the denoised image
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    # Resize denoised image to match clean_image
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+# loads the images. Takes the paths of the images, and for each individual image path, it converts it to an array. Also,
+# a normalization of [0,1] happens here. And incase the image is colored, it converts the image to grayscale
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+
+images = load_images(image_paths)
+
+# Adding multiplicative noise to the clean image
+def add_multiplicative_noise(image, noise_std):
+  noise=np.random.normal(scale=1, size=image.shape)
+  noisy_image =(image)*(noise)
+  return noisy_image
+
+
+# Adding additive noise to the clean image
+def add_additive_noise(image, noise_std):
+  noise=np.random.normal(scale=noise_std, size=image.shape)
+  noisy_image = image+noise
+  noisy_image = np.clip(noisy_image, 0, 1)
+  return noisy_image
+
+# also adds additive image. but as a fuction, it calls the add_additive_noise function.
+def process_image(clean_image_np, noise_std):
+    noisy_image = add_additive_noise(clean_image_np, noise_std)
+    return noisy_image
+
+# This code block involves the image processing and visualization code. I have the set up code here, (load images), the
+# code to add a certain type of noise, and then code to show the various images and visualizations
+# that are displayed in the subplot.
+
+import torch
+
+def save_figure_as_image(figure, filename):
+    figure.savefig(filename)
+
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+    'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+]
+
+
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    # Resize denoised image to match clean_image
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')      # Convert to grayscale
+        images.append(np.array(img, dtype=np.float32) / 255.0)  # Normalize to [0, 1]
+    return images
+
+
+images = load_images(image_paths)
+
+def add_multiplicative_noise(image, noise_std):
+  noise=np.random.normal(scale=1, size=image.shape)
+  noisy_image =(image)*(noise)
+  return noisy_image
+
+def add_additive_noise(image, noise_std):
+  noise=np.random.normal(scale=noise_std, size=image.shape)
+  noisy_image = image+noise
+  noisy_image = np.clip(noisy_image, 0, 1)
+  return noisy_image
+
+def process_image(clean_image_np, noise_std):
+    noisy_image = add_additive_noise(clean_image_np, noise_std)
+    return noisy_image
+
+fig, axs = plt.subplots(len(images) * 2 + 1, 6, figsize=(15, 5 * (len(images) * 2 + 1)))
+
+def calculate_psnr_noisy(clean_image, noisy_image):
+    mse = np.mean((clean_image - noisy_image) ** 2)
+    max_pixel = 1
+    psnr = 10 * np.log10((max_pixel ** 2) / mse)
+    return psnr
+
+for i, clean_image_np in enumerate(images):
+    # Row 1: Denoised images for all layers
+    axs[i * 2, 0].imshow(clean_image_np, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 0].set_title('Original')
+
+    noise_std = 0.1
+    noisy_image = add_additive_noise(clean_image_np, noise_std)
+    axs[i * 2, 1].imshow(noisy_image, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 1].set_title(f'Noisy Image - PSNR: {calculate_psnr_noisy(clean_image_np, noisy_image):.2f} dB')
+
+    for layers in range(2, 6):  # Change condition from layers < 5 to layers <= 5
+        model_output, loss_history, time_elapsed = project_DIP(noisy_image, layers)
+        psnr_noisy_additive, psnr_denoised_additive = evaluate_psnr(clean_image_np, noisy_image, model_output)
+        axs[i * 2, layers].imshow(model_output, cmap='gray', vmin=0, vmax=1)
+        axs[i * 2, layers].set_title(f'{layers} Layers - PSNR: {psnr_denoised_additive:.2f} dB')
+
+    # Row 2: Plot PSNR, loss, and time taken
+    axs[i * 2 + 1, 0].plot(loss_history)
+    axs[i * 2 + 1, 0].set_title('Loss Graph')
+    axs[i * 2 + 1, 1].text(0.5, 0.5, f'Time lapsed: {time_elapsed:.2f}', horizontalalignment='center', verticalalignment='center', fontsize=12)
+    axs[i * 2 + 1, 1].axis('off')
+
+# Calculate total average PSNR per layer and average convergence loss
+avg_psnr_per_layer = [0] * 4
+avg_loss = 0
+
+for i, clean_image_np in enumerate(images):
+    noise_std = 0.1
+    noisy_image = add_additive_noise(clean_image_np, noise_std)
+    for layers in range(2, 6):
+        model_output, loss_history, time_elapsed = project_DIP(noisy_image, layers)
+        psnr_noisy_additive, psnr_denoised_additive = evaluate_psnr(clean_image_np, noisy_image, model_output)
+        avg_psnr_per_layer[layers - 2] += psnr_denoised_additive
+        avg_loss += loss_history[-1]
+
+avg_psnr_per_layer = [x / len(images) for x in avg_psnr_per_layer]
+avg_loss /= len(images)
+
+# Display total average PSNR per layer and average convergence loss
+for i, psnr in enumerate(avg_psnr_per_layer):
+    axs[len(images) * 2, i + 2].text(0.5, 0.5, f'Avg PSNR: {psnr:.2f} dB', horizontalalignment='center', verticalalignment='center', fontsize=12)
+axs[len(images) * 2, 0].axis('off')
+axs[len(images) * 2, 1].axis('off')
+axs[len(images) * 2, 0].set_title('Average Loss')
+axs[len(images) * 2, 0].text(0.5, 0.5, f'Avg Loss: {avg_loss:.4f}', horizontalalignment='center', verticalalignment='center', fontsize=12)
+
+plt.tight_layout()
+plt.show()
+
+
+
+---
+
+
+**Explanation of the code:**
+
+In the code above, the we take a series of images, and adds additive noise to these images.Then, we put these noisy images through our project_dip function, which preps the tensors to go through the dip model, to denoise the image.
+
+In this section specifically, we test the effect of having different layers in the model, and the impact of these in potentially improving the psnr.
+
+---
+
+
+**Analysis of the results:**
+
+Generally, we see that the PSNR reconstruction range is between 23.54-25.21 as average over layers 2-5. Looking at the average PSNR, the best image recontruction is at higher layers, such as when the model goes through 5 upsampling layers. There is quite a bit of improvement that happens between layer 4 to 5, however, a potential tradeoff to consider is the time that it takes to apply more layers of upsampling through model dip code because generally, the more layers, the more time it takes.
+# Testing Multiplicative Noise
+# Similarily to above, this code block involves the image processing and visualization code. I have the set up code here, (load images), the
+# code to add a certain type of noise(and in this case, instead of additive - multiplicative noise here), and then code to show the various images and visualizations
+# that are displayed in the subplot.
+
+import os
+import csv
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import os
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import cv2
+import math
+
+import time
+
+def save_figure_as_image(figure, filename):
+    figure.savefig(filename)
+
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+def add_multiplicative_noise(image, noise_std):
+    noise = np.random.normal(scale=1, size=image.shape)
+    noisy_image = (image) * (noise)
+    return noisy_image
+
+# Load images
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+    'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+]
+
+images = load_images(image_paths)
+
+fig, axs = plt.subplots(len(images) * 2 , 6, figsize=(15, 5 * (len(images) * 2 + 1)))
+
+best_psnr_per_image = []
+psnr_values_per_layer = [[] for _ in range(4)]
+
+loss_table_data = []
+
+for i, clean_image_np in enumerate(images):
+    axs[i * 2, 0].imshow(clean_image_np, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 0].set_title('Original')
+
+    noise_std = 0.1
+    noisy_image = add_multiplicative_noise(clean_image_np, noise_std)
+    noisy_image = np.abs(np.sqrt(math.pi/2) * noisy_image)
+    noisy_image = np.clip(noisy_image, 0, 1)
+    axs[i * 2, 1].imshow(noisy_image, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 1].set_title('Noisy Image  Multiplicative')
+    psnr_noisy, _ = evaluate_psnr(clean_image_np, noisy_image, noisy_image)
+    axs[i * 2, 1].text(0.5, -0.2, f'PSNR: {psnr_noisy:.2f} dB', horizontalalignment='center', verticalalignment='center', transform=axs[i * 2, 1].transAxes, fontsize=10)
+
+    for layers in range(2, 6):
+        model_output, loss_history, time_elapsed = project_DIP(noisy_image, layers)
+        psnr_noisy_multiplicative, psnr_denoised_multiplicative = evaluate_psnr(clean_image_np, noisy_image, model_output)
+        axs[i * 2, layers].imshow(model_output, cmap='gray', vmin=0, vmax=1)
+        axs[i * 2, layers].set_title(f'{layers} Layers')
+
+        axs[i * 2, layers].text(0.5, -0.2, f'PSNR: {psnr_denoised_multiplicative:.2f} dB',
+                                horizontalalignment='center', verticalalignment='center',
+                                transform=axs[i * 2, layers].transAxes, fontsize=10)
+
+        psnr_values_per_layer[layers - 2].append(psnr_denoised_multiplicative)
+
+    axs[i * 2 + 1, 0].plot(loss_history)
+    axs[i * 2 + 1, 0].set_title('Loss Graph')
+
+    axs[i * 2 + 1, 1].text(0.5, 0.5, f'Time lapsed: {time_elapsed:.2f}', horizontalalignment='center', verticalalignment='center', fontsize=12)
+    axs[i * 2 + 1, 1].axis('off')
+
+    if psnr_values_per_layer[-1]:
+        best_psnr = max(psnr_values_per_layer[-1])
+        best_psnr_per_image.append(best_psnr)
+    else:
+        best_psnr_per_image.append(0)
+
+    loss_table_data.append(loss_history[-1])
+
+plt.subplots_adjust(hspace=0.5)
+
+plt.tight_layout()
+plt.show()
+
+loss_table_data = np.array(loss_table_data).reshape((len(images), 1))
+table_columns = ['Loss Convergence']
+table_rows = [os.path.splitext(os.path.basename(path))[0] for path in image_paths]
+plt.figure(figsize=(8, 3))
+plt.axis('off')
+plt.table(cellText=loss_table_data, colLabels=table_columns, rowLabels=table_rows, loc='center')
+plt.title('Loss Convergence per Image Multiplicative Noise')
+plt.show()
+
+average_psnr_per_layer = [np.mean(layer_psnr) if layer_psnr else 0 for layer_psnr in psnr_values_per_layer]
+
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.bar(range(2, 6), average_psnr_per_layer, color='blue')
+ax.set_xlabel('Number of Layers')
+ax.set_ylabel('Average PSNR (dB)')
+ax.set_title('Average PSNR per Layer Across All Images for  Multiplicative Noise')
+ax.set_xticks(range(2, 6))
+ax.set_xticklabels([f'{i} Layers' for i in range(2, 6)])
+plt.show()
+
+for idx, psnr in enumerate(average_psnr_per_layer, start=2):
+    print(f'Average PSNR for {idx} Layers: {psnr:.2f} dB')
+
+
+
+---
+
+
+**Explanation of the code:**
+
+In the code above, the we take a series of images, and adds multiplcative noise to these images. There is normalization that happens in this proces, to ensure that the intensity are within the range of [0,1], and the image is also multiplied by a factor of pi/2, which seems to be an opminal constant for multiplicative image denoising. This factor of pi/2 is derived from the noise standard deviation. And then the clipping in range of [0,1] helps ensure that the pixels remain valid.
+
+Then, we put these noisy images through our project_dip function, which preps the tensors to go through the dip model, to denoise the image.
+
+In this section specifically, we test the effect of having different layers in the model, and the impact of these in potentially improving the psnr.
+
+---
+
+
+**Analysis of the results:**
+
+Generally, we see that the PSNR for multiplicative noise denoising is worse than additive noise. However, even then, it seems that the average PSNR is better at lower levels, rather than higher levels. Meaning, 2-3 layers do a better job of image reconstruction than higher layers.
+# 256 vs 512 Image Size Multiplicative
+
+import math
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+from PIL import Image
+
+def calculate_psnr(clean_image, noisy_image, denoised_image):
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def resize_image(image, target_shape):
+    return cv2.resize(image, target_shape, interpolation=cv2.INTER_LINEAR)
+
+def add_multiplicative_noise(image, noise_std):
+  noise=np.random.normal(scale=1, size=image.shape)
+  noisy_image =(image)*(noise)
+  return noisy_image
+
+def calculate_psnr_noisy(clean_image, noisy_image):
+    mse = np.mean((clean_image - noisy_image) ** 2)
+    max_pixel = 1
+    psnr = 10 * np.log10((max_pixel ** 2) / mse)
+    return psnr
+
+def test_denoising(images, image_paths):
+    time_taken = []
+    loss_history_list = []
+    psnr_values = []
+    noisy_images = []
+    denoised_images = []
+
+    for i, clean_image_np in enumerate(images):
+        noise_std=0.1
+        noisy_image = add_multiplicative_noise(clean_image_np, noise_std)
+        noisy_image = np.abs(np.sqrt(math.pi / 2) * noisy_image)
+        noisy_image = np.clip(noisy_image, 0, 1)
+        noisy_images.append(noisy_image)
+
+        start_time = time.time()
+        model_output, loss_history, _ = project_DIP(noisy_image, 3)
+        end_time = time.time()
+        time_taken.append(end_time - start_time)
+        loss_history_list.append(loss_history)
+
+        denoised_image_resized = resize_image(model_output, clean_image_np.shape[::-1])
+        denoised_images.append(denoised_image_resized)
+
+        psnr = calculate_psnr(clean_image_np, noisy_image, model_output)
+        psnr_values.append(psnr)
+
+    return time_taken, loss_history_list, psnr_values, noisy_images, denoised_images
+
+image_paths_256 = [
+    'barbara256.png', 'boats.tif', 'cameraman.tif', 'peppers256.tif'
+]
+
+image_paths_512 = [
+    'barbara512.gif', 'boats512.tif', 'test.jpeg', 'peppers512.tif'
+]
+
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+images_256 = load_images(image_paths_256)
+
+time_taken_256, loss_history_list_256, psnr_values_256, noisy_images_256, denoised_images_256 = test_denoising(images_256, image_paths_256)
+
+images_512 = load_images(image_paths_512)
+time_taken_512, loss_history_list_512, psnr_values_512, noisy_images_512, denoised_images_512 = test_denoising(images_512, image_paths_512)
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(15, 10))
+
+total_columns = max(len(images_256), len(images_512)) * 3
+plt.figure(figsize=(20, 16))  # Adjust the figure size to fit all subplots comfortably
+total_images = len(images_256) + len(images_512)
+cols_per_image_set = 3  # 'Original', 'Noisy', 'Denoised'
+
+# Plot all images for 256x256 resolution
+for i in range(len(images_256)):
+    plt.subplot(4, total_images, i + 1)
+    plt.imshow(images_256[i], cmap='gray')
+    plt.title('Original (256x256)', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, total_images + i + 1)
+    plt.imshow(noisy_images_256[i], cmap='gray')
+    plt.title(f'Noisy (256x256) Multiplicative PSNR: {calculate_psnr_noisy(images_256[i], noisy_images_256[i]):.2f} dB', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, 2 * total_images + i + 1)
+    plt.imshow(denoised_images_256[i], cmap='gray')
+    plt.title(f'Denoised (256x256) PSNR: {psnr_values_256[i][1]:.2f} dB', fontsize=10)
+    plt.axis('off')
+
+# Plot all images for 512x512 resolution
+for j in range(len(images_512)):
+    idx = len(images_256) + j
+    plt.subplot(4, total_images, idx + 1)
+    plt.imshow(images_512[j], cmap='gray')
+    plt.title('Original (512x512)', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, total_images + idx + 1)
+    plt.imshow(noisy_images_512[j], cmap='gray')
+    plt.title(f'Noisy (512x512) Multiplicative PSNR: {calculate_psnr_noisy(images_512[j], noisy_images_512[j]):.2f} dB', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, 2 * total_images + idx + 1)
+    plt.imshow(denoised_images_512[j], cmap='gray')
+    plt.title(f'Denoised (512x512) PSNR: {psnr_values_512[j][1]:.2f} dB', fontsize=10)
+    plt.axis('off')
+
+plt.tight_layout(pad=3.0)  # Increase padding to prevent overlap of subplot titles and images
+plt.show()
+
+plt.figure(figsize=(15, 6))
+for i, loss_history_256 in enumerate(loss_history_list_256):
+    plt.plot(loss_history_256, label=f'Image {i} (256x256)', color='blue')
+for i, loss_history_512 in enumerate(loss_history_list_512):
+    plt.plot(loss_history_512, label=f'Image {i} (512x512)', color='red')
+
+plt.xlabel('Iteration', fontsize=12)
+plt.ylabel('Loss', fontsize=12)
+plt.title('Loss Graph for Convergence Time Comparison (3 Layers) Multiplicative Noise', fontsize=14)
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+---
+
+
+**Explanation of the code:**
+
+In the code above, I test the effect of image size, on the image reconstruction PSNR. Specifcially, in this code block, I'm putting a series of images that I could find a 256 and 512 pixel size version of, and comapring their denoised performance after adding multiplicative noise to the original clean image versions.
+
+---
+
+
+**Analysis of the results:**
+For the 4 images that we compared, it's consistently seen that the 512x512 images have a better denoising than the 256x256 images. This can also be seen in the loss graph with the red lines represetning 512x512 images, and blue lines representing 256x256 images. Here, although the red lines, 512x512, start of at a higher loss, they have a lower loss than the 256x256 images by the time the loss graph starts to converge.
+# 256 vs 512 Image Size Additive
+import math
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+from PIL import Image
+
+def calculate_psnr(clean_image, noisy_image, denoised_image):
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def resize_image(image, target_shape):
+    return cv2.resize(image, target_shape, interpolation=cv2.INTER_LINEAR)
+
+def calculate_psnr_noisy(clean_image, noisy_image):
+    mse = np.mean((clean_image - noisy_image) ** 2)
+    max_pixel = 1
+    psnr = 10 * np.log10((max_pixel ** 2) / mse)
+    return psnr
+
+
+def add_additive_noise(image, noise_std):
+  noise=np.random.normal(scale=noise_std, size=image.shape)
+  noisy_image = image+noise
+  noisy_image = np.clip(noisy_image, 0, 1)
+  return noisy_image
+
+def test_denoising(images, image_paths):
+    time_taken = []
+    loss_history_list = []
+    psnr_values = []
+    noisy_images = []
+    denoised_images = []
+
+    for i, clean_image_np in enumerate(images):
+        noise_std=0.1
+        noisy_image = add_additive_noise(clean_image_np, noise_std)
+
+        noisy_images.append(noisy_image)
+
+        start_time = time.time()
+        model_output, loss_history, _ = project_DIP(noisy_image, 3)
+        end_time = time.time()
+        time_taken.append(end_time - start_time)
+        loss_history_list.append(loss_history)
+
+        denoised_image_resized = resize_image(model_output, clean_image_np.shape[::-1])
+        denoised_images.append(denoised_image_resized)
+
+        psnr = calculate_psnr(clean_image_np, noisy_image, model_output)
+        psnr_values.append(psnr)
+
+    return time_taken, loss_history_list, psnr_values, noisy_images, denoised_images
+
+image_paths_256 = [
+    'barbara256.png', 'boats.tif', 'cameraman.tif', 'peppers256.tif'
+]
+
+image_paths_512 = [
+    'barbara512.gif', 'boats512.tif', 'test.jpeg', 'peppers512.tif'
+]
+
+images_256 = load_images(image_paths_256)
+time_taken_256, loss_history_list_256, psnr_values_256, noisy_images_256, denoised_images_256 = test_denoising(images_256, image_paths_256)
+
+images_512 = load_images(image_paths_512)
+time_taken_512, loss_history_list_512, psnr_values_512, noisy_images_512, denoised_images_512 = test_denoising(images_512, image_paths_512)
+
+
+import matplotlib.pyplot as plt
+
+
+plt.figure(figsize=(15, 10))
+
+total_columns = max(len(images_256), len(images_512)) * 3
+plt.figure(figsize=(20, 16))  # Adjust the figure size to fit all subplots comfortably
+total_images = len(images_256) + len(images_512)
+cols_per_image_set = 3  # 'Original', 'Noisy', 'Denoised'
+
+# Plot all images for 256x256 resolution
+for i in range(len(images_256)):
+    plt.subplot(4, total_images, i + 1)
+    plt.imshow(images_256[i], cmap='gray')
+    plt.title('Original (256x256)', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, total_images + i + 1)
+    plt.imshow(noisy_images_256[i], cmap='gray')
+    plt.title(f'Noisy (256x256) Additive PSNR: {calculate_psnr_noisy(images_256[i], noisy_images_256[i]):.2f} dB', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, 2 * total_images + i + 1)
+    plt.imshow(denoised_images_256[i], cmap='gray')
+    plt.title(f'Denoised (256x256) PSNR: {psnr_values_256[i][1]:.2f} dB', fontsize=10)
+    plt.axis('off')
+
+# Plot all images for 512x512 resolution
+for j in range(len(images_512)):
+    idx = len(images_256) + j
+    plt.subplot(4, total_images, idx + 1)
+    plt.imshow(images_512[j], cmap='gray')
+    plt.title('Original (512x512)', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, total_images + idx + 1)
+    plt.imshow(noisy_images_512[j], cmap='gray')
+    plt.title(f'Noisy (512x512) Additive PSNR: {calculate_psnr_noisy(images_512[j], noisy_images_512[j]):.2f} dB', fontsize=10)
+    plt.axis('off')
+
+    plt.subplot(4, total_images, 2 * total_images + idx + 1)
+    plt.imshow(denoised_images_512[j], cmap='gray')
+    plt.title(f'Denoised (512x512) PSNR: {psnr_values_512[j][1]:.2f} dB', fontsize=10)
+    plt.axis('off')
+
+plt.tight_layout(pad=3.0)  # Increase padding to prevent overlap of subplot titles and images
+plt.show()
+
+
+plt.figure(figsize=(15, 5))
+
+for i, loss_history_256 in enumerate(loss_history_list_256):
+    plt.plot(loss_history_256, label=f'Image {i} (256x256)', color='blue')
+for i, loss_history_512 in enumerate(loss_history_list_512):
+    plt.plot(loss_history_512, label=f'Image {i} (512x512)', color='red')
+
+plt.xlabel('Iteration', fontsize=12)
+plt.ylabel('Loss', fontsize=12)
+plt.title('Loss Graph for Convergence Time Comparison (3 Layers) Additive Noise', fontsize=14)
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+---
+
+
+**Explanation of the code:**
+
+In the code above, I test the effect of image size, on the image reconstruction PSNR. Specifcially, in this code block, I'm putting a series of images that I could find a 256 and 512 pixel size version of, and comapring their denoised performance after adding additive noise to the original clean image versions.
+
+---
+
+
+**Analysis of the results:**
+For the 4 images that we compared, it's consistently seen that the 512x512 images have a better denoising than the 256x256 images. This can also be seen in the loss graph with the red lines represetning 512x512 images, and blue lines representing 256x256 images. Here, although the red lines, 512x512, start of at a higher loss, they have a lower loss than the 256x256 images by the time the loss graph starts to converge.
+
+Compared the the loss graph for multiplicative noise, the loss graph doesn't have as large a gap between teh 256 vs 512 image sizes that inital iteration - however the general trend of 512 image sizes showing lower loss by the end remains the same.
+# Kernel Size multiplicative
+
+class model_dip_three_layers(nn.Module):
+    def __init__(self, kernel_size=3):
+        super(model_dip_three_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=kernel_size, padding=kernel_size // 2),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=kernel_size, padding=kernel_size // 2),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+        x = self.up2(x)
+        x = self.up6(x)
+        x = self.final(x)
+        return x
+
+
+
+def project_DIP_with_kernel(x_temp, layer, kernel_size):
+    n1, n2 = x_temp.shape
+    sizen1 = int(n1 / 8)
+    input_tensor = torch.randn(1, 64, sizen1, sizen1)
+    if not isinstance(x_temp, torch.Tensor):
+        x_temp = torch.from_numpy(x_temp).float()
+
+    if layer == 2:
+        model = model_dip_two_layers(kernel_size=kernel_size)
+    elif layer == 3:
+        model = model_dip_three_layers(kernel_size=kernel_size)
+    elif layer == 4:
+        model = model_dip_four_layers(kernel_size=kernel_size)
+    elif layer == 5:
+        model = model_dip_five_layers(kernel_size=kernel_size)
+    else:
+        model = model_dip_three_layers(kernel_size=kernel_size)
+
+    optimizer = optim.Adam(model.parameters(), lr=0.05)
+    criterion = nn.MSELoss()
+
+    loss_history = []
+    start_time = time.time()
+    num_steps = 200
+    for step in range(num_steps):
+        optimizer.zero_grad()
+        output = model(input_tensor)
+
+        output_resized = F.interpolate(output, size=x_temp.shape[-2:], mode='bilinear', align_corners=False)
+        loss = criterion(output_resized, x_temp)
+        loss_history.append(loss.item())
+
+        loss.backward()
+        optimizer.step()
+
+        # if step % 10 == 0:
+            # print(f"Step {step}, Loss: {loss.item()}")
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    print("Time lapsed {kernel_size:.2f}", time_elapsed)
+
+    output_np = output.squeeze().detach().numpy()
+
+    return output_np, loss_history, time_elapsed
+
+kernel_sizes = [1, 3, 5, 7]
+
+psnr_results_kernel = {}
+
+noise_std =0.1
+
+def evaluate_psnr(true_image, test_image):
+    mse = np.mean((true_image - test_image) ** 2)
+    if mse == 0:
+        return float('inf')
+    return 20 * np.log10(1.0 / np.sqrt(mse))
+
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+     'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+
+]
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+images = load_images(image_paths)
+psnr_results = {}
+
+import matplotlib.pyplot as plt
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def display_images_and_psnr(images, kernel_sizes, results):
+    num_images = len(images)
+    num_kernels = len(kernel_sizes)
+    psnr_per_kernel = {k: [] for k in kernel_sizes}
+
+    fig, axs = plt.subplots(num_images, 2 + num_kernels, figsize=(15, 5 * num_images))
+
+    for i, image in enumerate(images):
+        ax = axs[i, 0]
+        ax.imshow(image, cmap='gray', vmin=0, vmax=1)
+        ax.set_title('Original Image')
+        ax.axis('off')
+
+        noisy_image = add_multiplicative_noise(image, noise_std=0.1)
+        noisy_image = np.abs(np.sqrt(math.pi / 2) * noisy_image)
+        noisy_image = np.clip(noisy_image, 0, 1)
+        psnr_noisy = evaluate_psnr(image, noisy_image)
+
+        ax = axs[i, 1]
+        ax.imshow(noisy_image, cmap='gray', vmin=0, vmax=1)
+        ax.set_title(f'Noisy Image Multiplicative \nPSNR: {psnr_noisy:.2f} dB')
+        ax.axis('off')
+
+        for j, kernel_size in enumerate(kernel_sizes):
+            denoised_image, _, _ = project_DIP_with_kernel(noisy_image, layer=3, kernel_size=kernel_size)
+            psnr_denoised = evaluate_psnr(image, denoised_image)
+            psnr_per_kernel[kernel_size].append(psnr_denoised)
+
+            ax = axs[i, j + 2]
+            ax.imshow(denoised_image, cmap='gray', vmin=0, vmax=1)
+            ax.set_title(f'Kernel Size: {kernel_size}\nPSNR: {psnr_denoised:.2f} dB')
+            ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+    avg_psnrs = {k: np.mean(v) for k, v in psnr_per_kernel.items()}
+    print("Average PSNRs by Kernel Size for Multiplicative Noise:")
+    for kernel_size, avg_psnr in avg_psnrs.items():
+        print(f"Kernel Size {kernel_size}: {avg_psnr:.2f} dB")
+
+psnr_results = {}
+for i, img_path in enumerate(image_paths):
+    psnr_results[(img_path, "noisy")] = np.random.uniform(20, 30)  # Example PSNR for noisy image
+
+display_images_and_psnr(images, kernel_sizes, psnr_results)
+
+
+
+---
+
+
+**Explanation of code block:**
+In the code block above, we test the the impact of the kernel size, on the reconstruction of a series of images - given that we've added multiplicative noise to these images. The kernel size is a variable that's part of the model_dip_three_layers, model for the decoder. The kernel size is passed a parameter to the model_dip_three_layers class, which then, runs a series of convolution upsampling steps using the particular kernel size.
+
+
+---
+
+
+**Analysis of results:**
+
+For multiplicative noise, results show that the reconstruction quality is best for kernel sizes that are higher. Analyzing the images individual as well, the image reconstruction quality is best at a kernel size of 7.
+# kernel size additive
+
+def add_additive_noise(image, noise_std):
+  noise=np.random.normal(scale=noise_std, size=image.shape)
+  noisy_image = image+noise
+  noisy_image = np.clip(noisy_image, 0, 1)
+  return noisy_image
+
+class model_dip_three_layers(nn.Module):
+    def __init__(self, kernel_size=3):
+        super(model_dip_three_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=kernel_size, padding=kernel_size // 2),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=kernel_size, padding=kernel_size // 2),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+        x = self.up2(x)
+        x = self.up6(x)
+        x = self.final(x)
+        return x
+
+
+
+def project_DIP_with_kernel(x_temp, layer, kernel_size):
+    n1, n2 = x_temp.shape
+    sizen1 = int(n1 / 8)
+    input_tensor = torch.randn(1, 64, sizen1, sizen1)
+    if not isinstance(x_temp, torch.Tensor):
+        x_temp = torch.from_numpy(x_temp).float()
+
+    if layer == 2:
+        model = model_dip_two_layers(kernel_size=kernel_size)
+    elif layer == 3:
+        model = model_dip_three_layers(kernel_size=kernel_size)
+    elif layer == 4:
+        model = model_dip_four_layers(kernel_size=kernel_size)
+    elif layer == 5:
+        model = model_dip_five_layers(kernel_size=kernel_size)
+    else:
+        model = model_dip_three_layers(kernel_size=kernel_size)
+
+    optimizer = optim.Adam(model.parameters(), lr=0.05)
+    criterion = nn.MSELoss()
+
+    loss_history = []
+    start_time = time.time()
+    num_steps = 200
+    for step in range(num_steps):
+        optimizer.zero_grad()
+        output = model(input_tensor)
+
+        output_resized = F.interpolate(output, size=x_temp.shape[-2:], mode='bilinear', align_corners=False)
+        loss = criterion(output_resized, x_temp)
+        loss_history.append(loss.item())
+
+        loss.backward()
+        optimizer.step()
+
+        # if step % 10 == 0:
+            # print(f"Step {step}, Loss: {loss.item()}")
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    print("Time lapsed {kernel_size:.2f}", time_elapsed)
+
+    output_np = output.squeeze().detach().numpy()
+
+    return output_np, loss_history, time_elapsed
+
+kernel_sizes = [1, 3, 5, 7]
+
+psnr_results_kernel = {}
+
+noise_std =0.1
+
+def evaluate_psnr(true_image, test_image):
+    mse = np.mean((true_image - test_image) ** 2)
+    if mse == 0:
+        return float('inf')
+    return 20 * np.log10(1.0 / np.sqrt(mse))
+
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+     'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+
+]
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+images = load_images(image_paths)
+psnr_results = {}
+
+import matplotlib.pyplot as plt
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def display_images_and_psnr(images, kernel_sizes, results):
+    num_images = len(images)
+    num_kernels = len(kernel_sizes)
+    psnr_per_kernel = {k: [] for k in kernel_sizes}
+
+    fig, axs = plt.subplots(num_images, 2 + num_kernels, figsize=(15, 5 * num_images))
+
+    for i, image in enumerate(images):
+        ax = axs[i, 0]
+        ax.imshow(image, cmap='gray', vmin=0, vmax=1)
+        ax.set_title('Original Image')
+        ax.axis('off')
+
+        noisy_image = add_additive_noise(image, noise_std=0.1)
+        psnr_noisy = evaluate_psnr(image, noisy_image)
+
+        ax = axs[i, 1]
+        ax.imshow(noisy_image, cmap='gray', vmin=0, vmax=1)
+        ax.set_title(f'Noisy Image Additive \nPSNR: {psnr_noisy:.2f} dB')
+        ax.axis('off')
+
+        for j, kernel_size in enumerate(kernel_sizes):
+            denoised_image, _, _ = project_DIP_with_kernel(noisy_image, layer=3, kernel_size=kernel_size)
+            psnr_denoised = evaluate_psnr(image, denoised_image)
+            psnr_per_kernel[kernel_size].append(psnr_denoised)
+
+            ax = axs[i, j + 2]
+            ax.imshow(denoised_image, cmap='gray', vmin=0, vmax=1)
+            ax.set_title(f'Kernel Size: {kernel_size}\nPSNR: {psnr_denoised:.2f} dB')
+            ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+    avg_psnrs = {k: np.mean(v) for k, v in psnr_per_kernel.items()}
+    print("Average PSNRs by Kernel Size for Additive Noise:")
+    for kernel_size, avg_psnr in avg_psnrs.items():
+        print(f"Kernel Size {kernel_size}: {avg_psnr:.2f} dB")
+
+psnr_results = {}
+for i, img_path in enumerate(image_paths):
+    psnr_results[(img_path, "noisy")] = np.random.uniform(20, 30)  # Example PSNR for noisy image
+
+display_images_and_psnr(images, kernel_sizes, psnr_results)
+
+
+
+---
+
+
+**Explanation of code block:**
+
+In the code block above, we test the the impact of the kernel size, on the reconstruction of a series of images - given that we've added additive noise to these images.
+
+
+
+---
+
+
+**Analysis of results:**
+Looking at the average PSNR by kernel size for additive noise results in the very end of the results data above,it looks like a kernel size of 3 is optimal for the best reconstruction. This is interesting however, because certain images generally tend to have a better reconstruction than other at all kernel sizes. Therefore, analyzing on a case by case basic, it looks like for images such as the house, barbara, and boats - kernel size of 1 seems to do better. However, other set of images like parrot, foreman, cameraman, kernel 3 is better.
+
+# Power of Noise
+
+import os
+import csv
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import cv2
+import math
+import time
+
+def save_figure_as_image(figure, filename):
+    figure.savefig(filename)
+
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+def add_multiplicative_noise(image, noise_std):
+    noise = np.random.normal(scale=1, size=image.shape)
+    noisy_image = (image) * (noise)
+    return noisy_image
+
+import os
+import csv
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import os
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import cv2
+
+import time
+
+def save_figure_as_image(figure, filename):
+    figure.savefig(filename)
+
+
+image_paths = [
+    'barbara.tif', 'cameraman.tif', 'house.tif',
+    'Monarch.tif', 'peppers256.tif'
+]
+
+
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    # Resize denoised image to match clean_image
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+
+images = load_images(image_paths)
+
+def add_multiplicative_noise(image, noise_std):
+  noise=np.random.normal(scale=1, size=image.shape)
+  noisy_image =(image)*(noise)
+  return noisy_image
+
+def add_additive_noise(image, noise_std):
+  noise=np.random.normal(scale=noise_std, size=image.shape)
+  noisy_image = image+noise
+  noisy_image = np.clip(noisy_image, 0, 1)
+  return noisy_image
+
+def process_image(clean_image_np, noise_std):
+    noisy_image = add_additive_noise(clean_image_np, noise_std)
+    return noisy_image
+
+
+def project_DIP(x_temp, layer):
+    # Initialize the input with Gaussian noise
+    n1,n2 = x_temp.shape
+
+    # print('size input:', n1,n2)
+    # sizen1 = size_input/16;
+    # sizen1 = int(size_input / 16)
+    # print("input_size",size_input )
+    # print("sizen1", sizen1)
+    sizen1 = int(n1/8)
+    print(sizen1)
+    input_tensor = torch.randn(1, 64, sizen1, sizen1)
+
+    print("input_tensor_size",  input_tensor.size())
+
+
+    if not isinstance(x_temp, torch.Tensor):
+        x_temp = torch.from_numpy(x_temp).float()   #
+
+    if(layer ==2):
+      model = model_dip_two_layers()
+    elif(layer ==3):
+      model = model_dip_three_layers()
+    elif (layer==4):
+        model = model_dip_four_layers()
+    elif(layer==5):
+        model = model_dip_five_layers()
+    else:
+        model = model_dip_three_layers()
+
+
+
+    optimizer = optim.Adam(model.parameters(), lr=0.05)
+    criterion = nn.MSELoss()
+
+    loss_history =[]
+    start_time = time.time()
+    num_steps=200
+    for step in range(num_steps):
+        optimizer.zero_grad()
+        output=model(input_tensor)
+
+        # print("output shape", output.shape)
+        output_resized = F.interpolate(output, size=x_temp.shape[-2:], mode='bilinear', align_corners=False)
+
+        # Then calculate the loss with the resized output
+        loss = criterion(output_resized, x_temp)
+        loss_history.append(loss.item())
+
+        # loss = criterion(output,x_temp)
+        loss.backward()
+        optimizer.step()
+
+        if step % 10 == 0:
+            print(f"Step {step}, Loss: {loss.item()}")
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    print("Time lapsed", time_elapsed)
+
+    output_np = output.squeeze().detach().numpy()
+
+    return output_np, loss_history, time_elapsed
+
+
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+    'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+]
+
+images = load_images(image_paths)
+
+psnr_data = []
+
+
+def denoise_image_with_DIP(clean_image_np, noise_type, noise_std):
+    if noise_type == 'additive':
+        noisy_image = add_additive_noise(clean_image_np, noise_std)
+    elif noise_type == 'multiplicative':
+        noisy_image = add_multiplicative_noise(clean_image_np, noise_std)
+        noisy_image = np.abs(np.sqrt(math.pi / 2) * noisy_image)
+        noisy_image = np.clip(noisy_image, 0, 1)
+    else:
+        raise ValueError("Invalid noise type. Choose 'additive' or 'multiplicative'.")
+
+    denoised_image, _, _ = project_DIP(noisy_image, layer=3)
+
+    return clean_image_np, noisy_image, denoised_image
+
+noise_std_levels = [0.1, 0.2, 0.3]
+
+accumulated_psnr_results = {}
+
+for image_path in image_paths:
+    clean_image_np = load_images([image_path])[0]
+
+    for noise_std in noise_std_levels:
+        for noise_type in ['additive', 'multiplicative']:
+            clean_image, noisy_image, denoised_image = denoise_image_with_DIP(clean_image_np, noise_type, noise_std)
+            psnr_noisy, psnr_denoised = evaluate_psnr(clean_image, noisy_image, denoised_image)
+
+            if (image_path, noise_std) not in accumulated_psnr_results:
+                accumulated_psnr_results[(image_path, noise_std)] = {'noisy': 0, 'denoised': 0, 'count': 0}
+            accumulated_psnr_results[(image_path, noise_std)]['noisy'] += psnr_noisy
+            accumulated_psnr_results[(image_path, noise_std)]['denoised'] += psnr_denoised
+            accumulated_psnr_results[(image_path, noise_std)]['count'] += 1
+
+average_psnr_results = {}
+for key, value in accumulated_psnr_results.items():
+    image_path, noise_std = key
+    noisy_psnr_avg = value['noisy'] / value['count']
+    denoised_psnr_avg = value['denoised'] / value['count']
+    average_psnr_results[key] = (noisy_psnr_avg, denoised_psnr_avg)
+
+for key, value in average_psnr_results.items():
+    image_path, noise_std = key
+    noisy_psnr_avg, denoised_psnr_avg = value
+    print(f"Image: {image_path}, Noise Std: {noise_std}")
+    print(f"Average PSNR (Noisy): {noisy_psnr_avg:.2f} dB, Average PSNR (Denoised): {denoised_psnr_avg:.2f} dB")
+
+    clean_image_np = load_images([image_path])[0]
+    for noise_type in ['additive', 'multiplicative']:
+        clean_image, noisy_image, denoised_image = denoise_image_with_DIP(clean_image_np, noise_type, noise_std)
+        psnr_noisy, psnr_denoised = evaluate_psnr(clean_image, noisy_image, denoised_image)
+        plt.figure(figsize=(10, 5))
+        plt.subplot(1, 3, 1)
+        plt.imshow(clean_image, cmap='gray')
+        plt.title('Clean Image')
+        plt.axis('off')
+        plt.subplot(1, 3, 2)
+        plt.imshow(noisy_image, cmap='gray')
+        plt.title(f'Noisy Image\nPSNR: {psnr_noisy:.2f} dB')
+        plt.axis('off')
+        plt.subplot(1, 3, 3)
+        plt.imshow(denoised_image, cmap='gray')
+        plt.title(f'Denoised Image\nPSNR: {psnr_denoised:.2f} dB')
+        plt.axis('off')
+        plt.suptitle(f'Noise Std: {noise_std}, Noise Type: {noise_type}')
+        plt.show()
+
+
+
+---
+
+
+**Explanation of the code block**: The code above tests a series of images, who is path is indicated by image_paths, and tests the denoising PSNR rate depending on additive vs multiplicative noise.In this particular code block, we test to see if the power of noise has an effect on the reconstruction quality, as indicated by the PSNR. We test the impact of the following power of noise coefficients:  [0.1, 0.2, 0.3], as represented by the variable noise_std_levels, to see if the reconstruction quality is better at a particular level.
+
+
+
+
+---
+
+
+**Analysis of results:**
+Through the results above, we can see that that the value fo power of noise changes the PSNR for the denosied image significantly for additive noise. However, for multiplitcative noise, the value is not changed by much. This means that power of noise has an effect in additive noise, but not multiplicative noise.
+
+Additionally, for additive noise, we see that generally, a lower power of noise(lower as in 0.1), has a better denoised PSNR rate. a big reason for this is because when power of nosie is higher, the noisy image's PSNR is much lower, so it has more to denoise in the output image. At the same time, something interesting worth noting is that at higher PSNR, the image has to do much more more to recover oroginal image, and does a comparitivly good job - since it's able to denoise from low PSNR of around 12 to 22, while for 0.1 power of noise, it only denoises from 20 to 24.
+# Patch Sizes
+#defining functions needed to run tests on different patch sizes in the next code block
+
+import math
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import transforms
+from PIL import Image
+import numpy as np
+import time
+import matplotlib.pyplot as plt
+
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+    return images
+
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+# 3 layers
+import matplotlib.pyplot as plt
+
+class model_dip_three_layers(nn.Module):
+    def __init__(self):
+        super(model_dip_three_layers, self).__init__()
+
+        # Layer 1: Conv+ReLU+Batch,
+        self.up1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 32x32 output
+        )
+
+        # Layer 2: Conv+ReLU+Batch
+        self.up2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+        # Layer 3: Conv+ReLU+Batch
+        self.up3 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+           nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+        self.up4 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 64x64 output
+        )
+
+         # Layer 4: Conv+ReLU+Batch
+        self.up5 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+        self.up6 = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(1),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # Ensures 128x128 output
+        )
+
+
+        # Final Layer: Conv+Sigmoid,
+        self.final = nn.Sequential(
+            nn.Conv2d(1, 1, kernel_size=1, padding=0),
+            nn.Sigmoid()
+            # sigmoid bounds the output
+        )
+
+    def forward(self, x):
+        x = self.up1(x)
+        x = self.up2(x)
+        # x = self.up3(x)
+        # x = self.up4(x)
+        # x = self.up5(x)
+        x = self.up6(x)
+
+        x = self.final(x)
+        return x
+import os
+import csv
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import os
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import cv2
+import time
+
+def project_DIP_patches(x_temp, layer, noisy_image, image_np):
+    # Initialize the input with Gaussian noise
+    n1,n2 = x_temp.shape
+
+    # print('size input:', n1,n2)
+    # sizen1 = size_input/16;s
+    # sizen1 = int(size_input / 16)
+    # print("input_size",size_input )
+    # print("sizen1", sizen1)
+    sizen1 = int(n1/8)
+    print(sizen1)
+    input_tensor = torch.randn(1, 64, sizen1, sizen1)  # (batch_size, channels, height, width)
+
+    print("input_tensor_size",  input_tensor.size())
+
+
+    if not isinstance(x_temp, torch.Tensor):
+        x_temp = torch.from_numpy(x_temp).float()   # Convert to tensor if it's a numpy array
+
+
+    model = model_dip_three_layers()
+
+
+
+
+    optimizer = optim.Adam(model.parameters(), lr=0.05)
+    criterion = nn.MSELoss()
+
+    loss_history =[]
+    start_time = time.time()
+    num_steps=200
+    for step in range(num_steps):
+        optimizer.zero_grad()
+        output=model(input_tensor)
+
+        # print("output shape", output.shape)
+        output_resized = F.interpolate(output, size=x_temp.shape[-2:], mode='bilinear', align_corners=False)
+
+        # Then calculate the loss with the resized output
+        loss = criterion(output_resized, x_temp)
+        loss_history.append(loss.item())
+
+        # loss = criterion(output,x_temp)
+        loss.backward()
+        optimizer.step()
+
+        if step % 10 == 0:
+            print(f"Step {step}, Loss: {loss.item()}")
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    print("Time lapsed", time_elapsed)
+
+    output_np = output.squeeze().detach().numpy()
+    psnr_noisy, psnr_denoised = evaluate_psnr(image_np, noisy_image, output_np)
+
+    print("psnr", psnr_denoised)
+
+
+    return output_np, loss_history, time_elapsed
+
+
+
+import os
+import csv
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import os
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import cv2
+import math
+
+import time
+
+def save_figure_as_image(figure, filename):
+    figure.savefig(filename)
+
+def evaluate_psnr(clean_image, noisy_image, denoised_image):
+    if denoised_image.shape != clean_image.shape:
+        denoised_image = cv2.resize(denoised_image, (clean_image.shape[1], clean_image.shape[0]), interpolation=cv2.INTER_AREA)
+
+    max_pixel = 1
+    mse_noisy = np.mean((clean_image - noisy_image) ** 2)
+    mse_denoised = np.mean((clean_image - denoised_image) ** 2)
+    psnr_noisy = 10 * np.log10(max_pixel ** 2 / mse_noisy)
+    psnr_denoised = 10 * np.log10(max_pixel ** 2 / mse_denoised)
+    return psnr_noisy, psnr_denoised
+
+def load_images(paths):
+    images = []
+    for path in paths:
+        img = Image.open(path).convert('L')
+        images.append(np.array(img, dtype=np.float32) / 255.0)
+        # Normalize to [0, 1]
+    return images
+
+def add_multiplicative_noise(image, noise_std):
+    noise = np.random.normal(scale=1, size=image.shape)
+    noisy_image = (image) * (noise)
+    return noisy_image
+
+
+
+# image paths that we want to test
+image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+    'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+]
+
+images = load_images(image_paths)
+
+# fig, axs = plt.subplots(len(images) * 2, 5, figsize=(15, 5 * len(images)))
+fig, axs = plt.subplots(len(images) * 2 , 6, figsize=(15, 5 * (len(images) * 2 + 1)))
+
+best_psnr_per_image = []
+patch_sizes=[16, 32, 64, 128]
+
+psnr_values_per_patch = [[] for _ in range(len(patch_sizes))]
+
+loss_table_data = []
+for i, clean_image_np in enumerate(images):
+    axs[i * 2, 0].imshow(clean_image_np, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 0].set_title('Original')
+
+    noise_std = 0.1
+    noisy_image = add_multiplicative_noise(clean_image_np, noise_std)
+    noisy_image = np.abs(np.sqrt(math.pi/2) * noisy_image)
+    noisy_image = np.clip(noisy_image, 0, 1)
+    axs[i * 2, 1].imshow(noisy_image, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 1].set_title('Noisy Image Multiplicative')
+    psnr_noisy, _ = evaluate_psnr(clean_image_np, noisy_image, noisy_image)
+    axs[i * 2, 1].text(0.5, -0.2, f'PSNR: {psnr_noisy:.2f} dB', horizontalalignment='center', verticalalignment='center', transform=axs[i * 2, 1].transAxes, fontsize=10)
+
+    for j, patch_size in enumerate(patch_sizes):
+        denoised_image, loss_history, time_elapsed = project_DIP_patches(noisy_image, 3, patch_size,clean_image_np)
+        psnr_noisy_multiplicative, psnr_denoised_multiplicative = evaluate_psnr(clean_image_np, noisy_image, denoised_image)
+        axs[i * 2, j + 2].imshow(denoised_image, cmap='gray', vmin=0, vmax=1)
+        axs[i * 2, j + 2].set_title(f'{patch_size} Patch')
+
+        # axs[i * 2, j + 2].text(0.5, -0.2, f'PSNR: {psnr_denoised_multiplicative:.2f} dB',
+        #                         horizontalalignment='center', verticalalignment='center',
+        #                         transform=axs[i * 2, j + 2].transAxes, fontsize=10)
+        axs[i * 2, j + 2].text(0.5, -0.2, f'PSNR: {psnr_denoised_multiplicative:.2f} dB',
+                                horizontalalignment='center', verticalalignment='center',
+                                transform=axs[i * 2, j + 2].transAxes, fontsize=10)
+
+        psnr_values_per_patch[j].append(psnr_denoised_multiplicative)
+
+    axs[i * 2 + 1, 0].plot(loss_history)
+    axs[i * 2 + 1, 0].set_title('Loss Graph')
+
+    axs[i * 2 + 1, 1].text(0.5, 0.5, f'Time lapsed: {time_elapsed:.2f}', horizontalalignment='center', verticalalignment='center', fontsize=12)
+    axs[i * 2 + 1, 1].axis('off')
+
+    if psnr_values_per_patch[-1]:
+        best_psnr = max(psnr_values_per_patch[-1])
+        best_psnr_per_image.append(best_psnr)
+    else:
+        best_psnr_per_image.append(0)
+
+    loss_table_data.append(loss_history)
+
+plt.subplots_adjust(hspace=0.5)
+
+plt.tight_layout()  # Adjust layout
+plt.show()
+
+average_loss_convergence = np.mean(np.array(loss_table_data), axis=1)
+
+table_columns = ['Loss Convergence']
+table_rows = [os.path.splitext(os.path.basename(path))[0] for path in image_paths]
+plt.figure(figsize=(8, 3))
+plt.axis('off')
+plt.table(cellText=average_loss_convergence.reshape(-1, 1), colLabels=table_columns, rowLabels=table_rows, loc='center')
+plt.title('Average Loss Convergence per Image Multiplicative Noise')
+plt.show()
+
+average_psnr_per_patch = [np.mean(psnr_values) for psnr_values in psnr_values_per_patch]
+
+table_columns = ['Patch Size', 'Average PSNR (dB)']
+table_data = [[patch_sizes[i], average_psnr_per_patch[i]] for i in range(len(patch_sizes))]
+
+plt.figure(figsize=(8, 5))
+plt.axis('off')
+plt.table(cellText=table_data, colLabels=table_columns, loc='center')
+plt.title('Average PSNR per Patch Size Across All Images Multiplicative Noise')
+plt.show()
+
+**Explanation of the code block:**
+In this code block, we put a series of images throught the dip model, and test their ability to denoise multiplicative noise images, based on their patch size, to see if different patch sizes deliver better image reconstruction.  
+
+---
+
+
+
+**Analysis of results:** It looks like generally, the patch size of 128 gives the best denoising results, with the average at 18.022
+
+def add_additive_noise(image, noise_std):
+  noise=np.random.normal(scale=noise_std, size=image.shape)
+  noisy_image = image+noise
+  noisy_image = np.clip(noisy_image, 0, 1)
+  return noisy_image
+
+  image_paths = [
+    'barbara.tif', 'boats.tif', 'cameraman.tif',
+    'foreman.tif', 'house.tif',
+    'Monarch.tif', 'Parrots.tif', 'peppers256.tif'
+]
+
+images = load_images(image_paths)
+
+# the plots:
+# fig, axs = plt.subplots(len(images) * 2, 5, figsize=(15, 5 * len(images)))
+fig, axs = plt.subplots(len(images) * 2 , 6, figsize=(14, 5 * (len(images) * 2 + 1)))
+
+
+best_psnr_per_image = []
+patch_sizes=[16, 32, 64, 128]
+
+psnr_values_per_patch = [[] for _ in range(len(patch_sizes))]
+
+loss_table_data = []
+for i, clean_image_np in enumerate(images):
+    axs[i * 2, 0].imshow(clean_image_np, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 0].set_title('Original')
+
+    noise_std = 0.1
+    noisy_image = add_additive_noise(clean_image_np, noise_std)
+    axs[i * 2, 1].imshow(noisy_image, cmap='gray', vmin=0, vmax=1)
+    axs[i * 2, 1].set_title('Noisy Image Additive')
+    psnr_noisy, _ = evaluate_psnr(clean_image_np, noisy_image, noisy_image)
+    axs[i * 2, 1].text(0.5, -0.2, f'PSNR: {psnr_noisy:.2f} dB', horizontalalignment='center', verticalalignment='center', transform=axs[i * 2, 1].transAxes, fontsize=10)
+
+    for j, patch_size in enumerate(patch_sizes):
+        denoised_image, loss_history, time_elapsed = project_DIP_patches(noisy_image, 3, patch_size,clean_image_np)
+        psnr_noisy_additive, psnr_denoised_additive = evaluate_psnr(clean_image_np, noisy_image, denoised_image)
+        axs[i * 2, j + 2].imshow(denoised_image, cmap='gray', vmin=0, vmax=1)
+        axs[i * 2, j + 2].set_title(f'{patch_size} Patch')
+
+        # axs[i * 2, j + 2].text(0.5, -0.2, f'PSNR: {psnr_denoised_multiplicative:.2f} dB',
+        #                         horizontalalignment='center', verticalalignment='center',
+        #                         transform=axs[i * 2, j + 2].transAxes, fontsize=10)
+        axs[i * 2, j + 2].text(0.5, -0.2, f'PSNR: {psnr_denoised_additive:.2f} dB',
+                                horizontalalignment='center', verticalalignment='center',
+                                transform=axs[i * 2, j + 2].transAxes, fontsize=10)
+
+        # Append PSNR values to list
+        psnr_values_per_patch[j].append(psnr_denoised_additive)
+
+    axs[i * 2 + 1, 0].plot(loss_history)
+    axs[i * 2 + 1, 0].set_title('Loss Graph Additive Noise')
+
+    axs[i * 2 + 1, 1].text(0.5, 0.5, f'Time lapsed: {time_elapsed:.2f}', horizontalalignment='center', verticalalignment='center', fontsize=12)
+    axs[i * 2 + 1, 1].axis('off')
+
+    if psnr_values_per_patch[-1]:
+        best_psnr = max(psnr_values_per_patch[-1])
+        best_psnr_per_image.append(best_psnr)
+    else:
+        best_psnr_per_image.append(0)
+
+    loss_table_data.append(loss_history)
+
+plt.subplots_adjust(hspace=0.5)
+
+plt.tight_layout()
+plt.show()
+
+average_loss_convergence = np.mean(np.array(loss_table_data), axis=1)
+
+table_columns = ['Loss Convergence Additive']
+table_rows = [os.path.splitext(os.path.basename(path))[0] for path in image_paths]
+plt.figure(figsize=(8, 3))
+plt.axis('off')
+plt.table(cellText=average_loss_convergence.reshape(-1, 1), colLabels=table_columns, rowLabels=table_rows, loc='center')
+plt.title('Average Loss Convergence per Image Additive')
+plt.show()
+
+average_psnr_per_patch = [np.mean(psnr_values) for psnr_values in psnr_values_per_patch]
+
+table_columns = ['Patch Size', 'Average PSNR (dB) ']
+table_data = [[patch_sizes[i], average_psnr_per_patch[i]] for i in range(len(patch_sizes))]
+
+plt.figure(figsize=(8, 5))
+plt.axis('off')
+plt.table(cellText=table_data, colLabels=table_columns, loc='center')
+plt.title('Average PSNR per Patch Size Across All Images Additive')
+plt.show()
+
+
+
+---
+
+
+**Explanation of the code block:**
+
+In this code block, we put a series of images throught the dip model, and test their ability to denoise additive noise images, based on their patch size, to see if different patch sizes deliver better image reconstruction.  
+
+
+---
+
+
+**Analysis of results:** It looks like generally, the patch size of 64 gives the best denoising results, with the average at 24.695
